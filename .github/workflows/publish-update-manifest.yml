@@ -27,7 +27,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Write update.json
+      - name: Write update files
         env:
           VERSION: ${{ inputs.version }}
           DOWNLOAD_URL: ${{ inputs.download_url }}
@@ -37,6 +37,10 @@ jobs:
 
           if ! echo "${VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
             echo "version 格式无效，必须是 x.y.z"
+            exit 1
+          fi
+          if ! echo "${DOWNLOAD_URL}" | grep -Eq '^https?://'; then
+            echo "download_url 格式无效，必须是 http/https 链接"
             exit 1
           fi
 
@@ -53,6 +57,28 @@ jobs:
               notes: $notes
             }' > update.json
 
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          readme = Path("README.md")
+          text = readme.read_text(encoding="utf-8") if readme.exists() else ""
+          download_url = os.environ["DOWNLOAD_URL"].strip()
+
+          section = f"## 下载地址\n- `{download_url}`\n"
+          pattern = re.compile(r"^## 下载地址\s*\n(?:(?!^## ).*(?:\n|$))*", re.MULTILINE)
+
+          if pattern.search(text):
+            text = pattern.sub(section, text, count=1)
+          else:
+            if text and not text.endswith("\n"):
+              text += "\n"
+            text += ("\n" if text else "") + section
+
+          readme.write_text(text, encoding="utf-8")
+          PY
+
       - name: Commit and push
         run: |
           set -euo pipefail
@@ -60,11 +86,11 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          if git diff --quiet -- update.json; then
-            echo "update.json 内容未变化，跳过提交"
+          if git diff --quiet -- update.json README.md; then
+            echo "README.md 和 update.json 内容未变化，跳过提交"
             exit 0
           fi
 
-          git add update.json
+          git add update.json README.md
           git commit -m "release: ${{ inputs.version }}"
           git push
