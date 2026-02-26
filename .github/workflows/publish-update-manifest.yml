@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "版本号（X.X，等于 codex-switcher/package.json 的前两位）"
+        description: "版本号（X.Y.Z，必须等于 codex-switcher/package.json 的 version）"
         required: true
         type: string
       download_url:
@@ -40,8 +40,8 @@ jobs:
         run: |
           set -euo pipefail
 
-          if ! echo "${VERSION}" | grep -Eq '^[0-9]+\.[0-9]+$'; then
-            echo "version 格式无效，必须是 X.X"
+          if ! echo "${VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "version 格式无效，必须是 X.Y.Z"
             exit 1
           fi
           if ! echo "${DOWNLOAD_URL}" | grep -Eq '^https?://'; then
