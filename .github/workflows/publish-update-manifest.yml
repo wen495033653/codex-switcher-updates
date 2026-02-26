@@ -7,14 +7,17 @@ on:
         description: "版本号（X.Y.Z，必须等于 codex-switcher/package.json 的 version）"
         required: true
         type: string
-      download_url:
+      share_url:
         description: "蓝奏云分享链接"
         required: true
         type: string
+      share_password:
+        description: "蓝奏云分享密码"
+        required: true
+        type: string
       asset_url:
-        description: "可选：EXE 直链（用于发布 GitHub Release 资产）"
-        required: false
-        default: ""
+        description: "EXE 直链（用于发布 GitHub Release 资产）"
+        required: true
         type: string
       notes:
         description: "更新说明（可选）"
@@ -35,7 +38,8 @@ jobs:
       - name: Write update files
         env:
           VERSION: ${{ inputs.version }}
-          DOWNLOAD_URL: ${{ inputs.download_url }}
+          SHARE_URL: ${{ inputs.share_url }}
+          SHARE_PASSWORD: ${{ inputs.share_password }}
           NOTES: ${{ inputs.notes }}
         run: |
           set -euo pipefail
@@ -44,20 +48,22 @@ jobs:
             echo "version 格式无效，必须是 X.Y.Z"
             exit 1
           fi
-          if ! echo "${DOWNLOAD_URL}" | grep -Eq '^https?://'; then
-            echo "download_url 格式无效，必须是 http/https 链接"
+          if ! echo "${SHARE_URL}" | grep -Eq '^https?://'; then
+            echo "share_url 格式无效，必须是 http/https 链接"
             exit 1
           fi
 
           published_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
           jq -n \
             --arg version "${VERSION}" \
-            --arg download_url "${DOWNLOAD_URL}" \
+            --arg share_url "${SHARE_URL}" \
+            --arg share_password "${SHARE_PASSWORD}" \
             --arg notes "${NOTES}" \
             --arg published_at "${published_at}" \
             '{
               version: $version,
-              download_url: $download_url,
+              share_url: $share_url,
+              share_password: $share_password,
               published_at: $published_at,
               notes: $notes
             }' > update.json
@@ -69,9 +75,10 @@ jobs:
 
           readme = Path("README.md")
           text = readme.read_text(encoding="utf-8") if readme.exists() else ""
-          download_url = os.environ["DOWNLOAD_URL"].strip()
+          share_url = os.environ["SHARE_URL"].strip()
+          share_password = os.environ["SHARE_PASSWORD"].strip()
 
-          section = f"## 下载地址\n- `{download_url}`\n"
+          section = f"## 下载地址\n- 链接：`{share_url}`\n- 密码：`{share_password}`\n"
           pattern = re.compile(r"^## 下载地址\s*\n(?:(?!^## ).*(?:\n|$))*", re.MULTILINE)
 
           if pattern.search(text):
@@ -88,17 +95,13 @@ jobs:
         id: download_exe
         env:
           VERSION: ${{ inputs.version }}
-          DOWNLOAD_URL: ${{ inputs.download_url }}
           ASSET_URL: ${{ inputs.asset_url }}
         run: |
           set -euo pipefail
 
-          source_url="${ASSET_URL:-}"
-          if [ -z "${source_url}" ]; then
-            source_url="${DOWNLOAD_URL}"
-          fi
+          source_url="${ASSET_URL}"
           if ! echo "${source_url}" | grep -Eq '^https?://'; then
-            echo "asset_url/download_url 格式无效"
+            echo "asset_url 格式无效，必须是 http/https 链接"
             exit 1
           fi
 
@@ -108,7 +111,7 @@ jobs:
           # PE 文件头应为 MZ（4d5a）
           header="$(xxd -p -l 2 "${asset_name}")"
           if [ "${header}" != "4d5a" ]; then
-            echo "下载内容不是有效 EXE。若 download_url 是蓝奏云分享页，请在 asset_url 填可直链下载的 EXE 地址。"
+            echo "下载内容不是有效 EXE，请确认 asset_url 是 EXE 直链。"
             exit 1
           fi
 

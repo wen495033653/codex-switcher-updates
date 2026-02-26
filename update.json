@@ -1,7 +1,7 @@
 {
-  "version": "3.0.0",
-  "download_url": "",
+  "version": "3.1.0",
+  "share_url": "",
+  "share_password": "",
   "published_at": "2026-02-26T11:01:03Z",
   "notes": "初始化更新清单；后续由 Publish Update Manifest 自动更新。"
 }
-
