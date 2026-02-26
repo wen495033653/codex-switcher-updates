@@ -11,6 +11,11 @@ on:
         description: "蓝奏云分享链接"
         required: true
         type: string
+      asset_url:
+        description: "可选：EXE 直链（用于发布 GitHub Release 资产）"
+        required: false
+        default: ""
+        type: string
       notes:
         description: "更新说明（可选）"
         required: false
@@ -78,6 +83,53 @@ jobs:
 
           readme.write_text(text, encoding="utf-8")
           PY
+
+      - name: Download EXE
+        id: download_exe
+        env:
+          VERSION: ${{ inputs.version }}
+          DOWNLOAD_URL: ${{ inputs.download_url }}
+          ASSET_URL: ${{ inputs.asset_url }}
+        run: |
+          set -euo pipefail
+
+          source_url="${ASSET_URL:-}"
+          if [ -z "${source_url}" ]; then
+            source_url="${DOWNLOAD_URL}"
+          fi
+          if ! echo "${source_url}" | grep -Eq '^https?://'; then
+            echo "asset_url/download_url 格式无效"
+            exit 1
+          fi
+
+          asset_name="Codex Switcher-${VERSION}.exe"
+          curl -L --retry 3 --retry-delay 2 --fail "${source_url}" -o "${asset_name}"
+
+          # PE 文件头应为 MZ（4d5a）
+          header="$(xxd -p -l 2 "${asset_name}")"
+          if [ "${header}" != "4d5a" ]; then
+            echo "下载内容不是有效 EXE。若 download_url 是蓝奏云分享页，请在 asset_url 填可直链下载的 EXE 地址。"
+            exit 1
+          fi
+
+          echo "asset_name=${asset_name}" >> "${GITHUB_OUTPUT}"
+          echo "tag_name=v${VERSION}" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ steps.download_exe.outputs.tag_name }}
+          ASSET_NAME: ${{ steps.download_exe.outputs.asset_name }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          set -euo pipefail
+
+          if gh release view "${TAG_NAME}" >/dev/null 2>&1; then
+            gh release upload "${TAG_NAME}" "${ASSET_NAME}" --clobber
+            gh release edit "${TAG_NAME}" --title "${TAG_NAME}" --notes "${NOTES}"
+          else
+            gh release create "${TAG_NAME}" "${ASSET_NAME}" --title "${TAG_NAME}" --notes "${NOTES}"
+          fi
 
       - name: Commit and push
         run: |
