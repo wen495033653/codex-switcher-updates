@@ -1,0 +1,70 @@
+name: Publish Update Manifest
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "版本号（必须等于 codex-switcher/package.json 的 version）"
+        required: true
+        type: string
+      download_url:
+        description: "蓝奏云分享链接"
+        required: true
+        type: string
+      notes:
+        description: "更新说明（可选）"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Write update.json
+        env:
+          VERSION: ${{ inputs.version }}
+          DOWNLOAD_URL: ${{ inputs.download_url }}
+          NOTES: ${{ inputs.notes }}
+        run: |
+          set -euo pipefail
+
+          if ! echo "${VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "version 格式无效，必须是 x.y.z"
+            exit 1
+          fi
+
+          published_at="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          jq -n \
+            --arg version "${VERSION}" \
+            --arg download_url "${DOWNLOAD_URL}" \
+            --arg notes "${NOTES}" \
+            --arg published_at "${published_at}" \
+            '{
+              version: $version,
+              download_url: $download_url,
+              published_at: $published_at,
+              notes: $notes
+            }' > update.json
+
+      - name: Commit and push
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet -- update.json; then
+            echo "update.json 内容未变化，跳过提交"
+            exit 0
+          fi
+
+          git add update.json
+          git commit -m "release: ${{ inputs.version }}"
+          git push
