@@ -9,5 +9,5 @@ codex 账号切换器
 - Codex 配置：`~/.codex/auth.json`
 
 ## 下载地址
-- 链接：`xxxxx`（替换为蓝奏云分享链接）
-- 密码：`xxxx`（替换为蓝奏云分享密码）
+- 链接：`https://dandanmian.lanzouq.com/iZQcB3j9q5le`
+- 密码：`63ws`
