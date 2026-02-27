@@ -9,5 +9,5 @@ codex 账号切换器
 - Codex 配置：`~/.codex/auth.json`
 
 ## 下载地址
-- 链接：`https://dandanmian.lanzouq.com/ivqCC3jbwzgh`
-- 密码：`cm3a`
+- 链接：`https://dandanmian.lanzouq.com/ieao83jccppc`
+- 密码：`9x3h`
